@@ -107,6 +107,7 @@
             font-size: 40px;
             position: relative;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
         }
 
         .orange {
@@ -121,6 +122,8 @@
             font-size: 14px;
             font-weight: bold;
             color: #666;
+            width: 100%;
+            text-align: center;
         }
 
         .berry {
@@ -136,6 +139,8 @@
             font-size: 14px;
             font-weight: bold;
             color: #666;
+            width: 100%;
+            text-align: center;
         }
 
         /* 状态标签 */
@@ -147,6 +152,7 @@
             background: #eee;
             color: #555;
             font-family: monospace;
+            white-space: nowrap;
         }
 
         /* 对话气泡 */
@@ -162,6 +168,7 @@
             box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
             opacity: 0;
             animation: popIn 0.5s forwards;
+            z-index: 20;
         }
 
         .bubble-left {
@@ -219,6 +226,7 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            white-space: nowrap;
         }
 
         /* 动画关键帧 */
@@ -281,8 +289,90 @@
 
         /* 响应式调整 */
         @media (max-width: 600px) {
-            .scene { padding: 0 10px; }
-            .bubble { font-size: 12px; width: 100px; }
+            body {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .subtitle {
+                font-size: 13px;
+                margin-bottom: 25px;
+            }
+
+            .panel {
+                padding: 15px 10px;
+            }
+
+            .scene {
+                padding: 0;
+                height: 180px; /* 减小高度 */
+                justify-content: space-around; /* 更好分配空间 */
+            }
+
+            .character-wrapper {
+                width: 70px; /* 减小宽度 */
+            }
+
+            .character {
+                width: 55px;
+                height: 55px;
+                font-size: 28px;
+            }
+
+            /* 调整伪元素文字位置 */
+            .orange::after, .berry::after {
+                font-size: 11px;
+                bottom: -20px;
+            }
+
+            .status-badge {
+                margin-top: 25px;
+                font-size: 10px;
+                padding: 1px 4px;
+            }
+
+            .packet-line {
+                left: 80px;
+                right: 80px;
+                top: 60%;
+            }
+
+            .packet {
+                font-size: 10px;
+                padding: 2px 4px;
+                top: -10px;
+            }
+
+            /* 气泡在手机上最好放在上方，避免遮挡连线 */
+            .bubble {
+                font-size: 11px;
+                width: auto;
+                max-width: 90px;
+                padding: 5px;
+                top: 5px; /* 移到顶部 */
+            }
+
+            .bubble-left {
+                left: 70px; /* 紧贴左侧角色 */
+            }
+
+            .bubble-right {
+                right: 70px; /* 紧贴右侧角色 */
+            }
+
+            /* 调整气泡箭头 */
+            .bubble-left::before {
+                left: -6px;
+                border-width: 6px 6px 6px 0;
+            }
+
+            .bubble-right::before {
+                right: -6px;
+                border-width: 6px 0 6px 6px;
+            }
         }
 
     </style>
