@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCP 协议：三次握手与四次挥手</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #f0f4f8;
+            --panel-bg: #ffffff;
+            --orange-color: #ff9f43; /* 桔子色 */
+            --berry-color: #4a90e2;
+            --text-color: #333;
+            --accent-color: #ff6b6b;
+            --arrow-color: #999;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        /* 漫画容器 */
+        .comic-strip {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        /* 单个分镜面板 */
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #e1e8ed;
+            transition: transform 0.2s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .panel-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #2c3e50;
+            color: white;
+            padding: 5px 15px;
+            border-bottom-right-radius: 12px;
+            font-weight: bold;
+            font-size: 0.9em;
+            z-index: 10;
+        }
+
+        .scene {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 250px;
+            padding: 0 40px;
+            position: relative;
+        }
+
+        /* 角色：桔子君 */
+        .character-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+            width: 100px;
+        }
+
+        .character {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .orange {
+            background-color: var(--orange-color);
+            border: 3px solid #e67e22; /* 深橙色边框 */
+        }
+
+        .orange::after {
+            content: "客户端";
+            position: absolute;
+            bottom: -25px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .berry {
+            background-color: var(--berry-color);
+            border: 3px solid #357abd;
+            color: white;
+        }
+
+        .berry::after {
+            content: "服务端";
+            position: absolute;
+            bottom: -25px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        /* 状态标签 */
+        .status-badge {
+            margin-top: 35px;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #eee;
+            color: #555;
+            font-family: monospace;
+        }
+
+        /* 对话气泡 */
+        .bubble {
+            background: #fff;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 10px;
+            position: absolute;
+            font-size: 14px;
+            max-width: 140px;
+            text-align: center;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+            opacity: 0;
+            animation: popIn 0.5s forwards;
+        }
+
+        .bubble-left {
+            top: 20px;
+            left: 110px;
+        }
+
+        .bubble-left::before {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 50%;
+            border-width: 10px 10px 10px 0;
+            border-style: solid;
+            border-color: transparent #333 transparent transparent;
+            transform: translateY(-50%);
+        }
+
+        .bubble-right {
+            top: 20px;
+            right: 110px;
+        }
+
+        .bubble-right::before {
+            content: '';
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            border-width: 10px 0 10px 10px;
+            border-style: solid;
+            border-color: transparent transparent transparent #333;
+            transform: translateY(-50%);
+        }
+
+        /* 传输线动画 */
+        .packet-line {
+            position: absolute;
+            top: 60%;
+            left: 120px;
+            right: 120px;
+            height: 2px;
+            background: #eee;
+            z-index: 1;
+        }
+
+        .packet {
+            position: absolute;
+            top: -14px;
+            background: var(--accent-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* 动画关键帧 */
+        @keyframes popIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes moveRight {
+            0% { left: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { left: 100%; transform: translateX(-100%); opacity: 1; }
+        }
+
+        @keyframes moveLeft {
+            0% { right: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { right: 100%; transform: translateX(100%); opacity: 1; }
+        }
+
+        /* 特定面板样式 */
+        /* 面板1: SYN */
+        #p1 .packet { animation: moveRight 2s infinite; }
+
+        /* 面板2: SYN+ACK */
+        #p2 .packet-1 { animation: moveLeft 2s infinite; animation-delay: 0s; background: var(--berry-color); }
+        #p2 .packet-2 { animation: moveRight 2s infinite; animation-delay: 1s; }
+
+        /* 面板3: FIN */
+        #p3 .packet-1 { animation: moveRight 2s infinite; background: #e74c3c; }
+        #p3 .packet-2 { animation: moveLeft 2s infinite; animation-delay: 1s; background: #95a5a6; }
+
+        /* 面板4: Server FIN */
+        #p4 .packet { animation: moveLeft 2s infinite; background: #e74c3c; }
+
+        /* 面板5: Client ACK */
+        #p5 .packet { animation: moveRight 2s infinite; background: #95a5a6; }
+        #p5 .line-break {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(45deg);
+            width: 40px; height: 5px; background: #e74c3c;
+        }
+        #p5 .line-break::after {
+            content: ''; position: absolute; width: 40px; height: 5px; background: #e74c3c;
+            transform: rotate(90deg);
+        }
+
+        .description {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent-color);
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .highlight { font-weight: bold; color: #e74c3c; }
+
+        /* 响应式调整 */
+        @media (max-width: 600px) {
+            .scene { padding: 0 10px; }
+            .bubble { font-size: 12px; width: 100px; }
+        }
+
+    </style>
+</head>
+<body>
+
+<h1>TCP 连接图解：桔子君历险记</h1>
+<div class="subtitle">5张连环画带你通过桔子君（客户端）和蓝莓妹（服务端）的故事看懂网络协议</div>
+
+<div class="comic-strip">
+
+    <!-- Panel 1 -->
+    <div class="panel" id="p1">
+        <div class="panel-header">第一幕：三次握手 - 建立连接 (1/3)</div>
+        <div class="scene">
+            <div class="character-wrapper">
+                <div class="character orange">🍊</div>
+                <div class="status-badge">SYN_SENT</div>
+            </div>
+
+            <div class="packet-line">
+                <div class="packet">SYN=1 ➤</div>
+            </div>
+            <div class="bubble bubble-left">
+                "喂，蓝莓妹！<br>在家吗？<br>我想聊天！"
+            </div>
+
+            <div class="character-wrapper">
+                <div class="character berry">🫐</div>
+                <div class="status-badge">LISTEN</div>
+            </div>
+        </div>
+        <div class="description">
+            <strong>第一步 (SYN)：</strong> 客户端发送一个 SYN 包，意思是“我想建立连接”。此时客户端进入 <span class="highlight">SYN_SENT</span> 状态。
+        </div>
+    </div>
+
+    <!-- Panel 2 -->
+    <div class="panel" id="p2">
+        <div class="panel-header">第二幕：三次握手 - 确认连接 (2/3 & 3/3)</div>
+        <div class="scene">
+            <div class="character-wrapper">
+                <div class="character orange">🍊</div>
+                <div class="status-badge">ESTABLISHED</div>
+            </div>
+
+            <div class="packet-line">
+                <div class="packet packet-1">🠔 SYN+ACK</div>
+                <div class="packet packet-2">ACK ➤</div>
+            </div>
+
+            <div class="bubble bubble-right" style="animation-delay: 0.5s">
+                "在呢！<br>我也想和你聊。<br>(SYN+ACK)"
+            </div>
+            <div class="bubble bubble-left" style="animation-delay: 1.5s">
+                "太好了！<br>那我开始说啦。<br>(ACK)"
+            </div>
+
+            <div class="character-wrapper">
+                <div class="character berry">🫐</div>
+                <div class="status-badge">ESTABLISHED</div>
+            </div>
+        </div>
+        <div class="description">
+            <strong>第二、三步 (SYN+ACK / ACK)：</strong> 服务端收到后，回复“我收到了，我也准备好了” (SYN+ACK)。客户端再回复“好，那我们正式连通” (ACK)。至此，<span class="highlight">连接建立成功</span>，双方可以开始传输数据。
+        </div>
+    </div>
+
+    <!-- Panel 3 -->
+    <div class="panel" id="p3">
+        <div class="panel-header">第三幕：四次挥手 - 提出分手 (1/4 & 2/4)</div>
+        <div class="scene">
+            <div class="character-wrapper">
+                <div class="character orange" style="filter: grayscale(0.5)">🍊</div>
+                <div class="status-badge">FIN_WAIT_2</div>
+            </div>
+
+            <div class="packet-line">
+                <div class="packet packet-1">FIN ➤</div>
+                <div class="packet packet-2">🠔 ACK</div>
+            </div>
+
+            <div class="bubble bubble-left">
+                "我说完了。<br>我要挂电话了。<br>(FIN)"
+            </div>
+            <div class="bubble bubble-right" style="animation-delay: 1s">
+                "知道了。<br>稍微等下，我还有话没传完。<br>(ACK)"
+            </div>
+
+            <div class="character-wrapper">
+                <div class="character berry">🫐</div>
+                <div class="status-badge">CLOSE_WAIT</div>
+            </div>
+        </div>
+        <div class="description">
+            <strong>挥手开始：</strong> 客户端发送 FIN (结束)，表示没数据发了。服务端回复 ACK (收到)，但此时服务端可能还有数据没处理完，进入 <span class="highlight">CLOSE_WAIT</span> 状态。
+        </div>
+    </div>
+
+    <!-- Panel 4 -->
+    <div class="panel" id="p4">
+        <div class="panel-header">第四幕：四次挥手 - 服务端结束 (3/4)</div>
+        <div class="scene">
+            <div class="character-wrapper">
+                <div class="character orange" style="filter: grayscale(0.5)">🍊</div>
+                <div class="status-badge">TIME_WAIT</div>
+            </div>
+
+            <div class="packet-line">
+                <div class="packet">🠔 FIN</div>
+            </div>
+
+            <div class="bubble bubble-right">
+                "好了，我也说完了。<br>咱们拜拜！<br>(FIN)"
+            </div>
+
+            <div class="character-wrapper">
+                <div class="character berry" style="filter: grayscale(0.5)">🫐</div>
+                <div class="status-badge">LAST_ACK</div>
+            </div>
+        </div>
+        <div class="description">
+            <strong>服务端结束：</strong> 服务端处理完所有数据后，也发送一个 FIN 包，表示“我也要关闭连接了”。
+        </div>
+    </div>
+
+    <!-- Panel 5 -->
+    <div class="panel" id="p5">
+        <div class="panel-header">第五幕：四次挥手 - 正式断开 (4/4)</div>
+        <div class="scene">
+            <div class="character-wrapper">
+                <div class="character orange" style="opacity: 0.5">🍊</div>
+                <div class="status-badge">CLOSED</div>
+            </div>
+
+            <div class="packet-line">
+                <div class="packet">ACK ➤</div>
+                <div class="line-break"></div>
+            </div>
+
+            <div class="bubble bubble-left">
+                "好的，拜拜。<br>(ACK)<br>Waiting..."
+            </div>
+
+            <div class="character-wrapper">
+                <div class="character berry" style="opacity: 0.5">🫐</div>
+                <div class="status-badge">CLOSED</div>
+            </div>
+        </div>
+        <div class="description">
+            <strong>彻底断开：</strong> 客户端收到服务端的 FIN 后，回复最后一个 ACK。客户端会等待一小会儿 (2MSL) 确保服务端收到了这个 ACK，然后彻底关闭。连接结束。
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
